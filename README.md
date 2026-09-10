@@ -1,6 +1,6 @@
 # quadroctl
 
-`quadroctl` is a command line tool for reading and changing Aquacomputer Quadro fan controller settings.
+`quadroctl` is a command line tool for reading and changing Aquacomputer Quadro fan controller settings. I wrote this before discovering [`liquidctl`](https://github.com/liquidctl/liquidctl).
 
 ## Warning
 
@@ -14,8 +14,7 @@ responsible for verifying backups, commands, fan behavior, temperatures, and
 safe fallback settings before and after every write.
 
 `quadroctl` is a Python command line tool for Aquacomputer Quadro fan
-controllers using the reverse-engineered HID report layout documented in 
-`quadro-interface-v2.md`.
+controllers using a reverse-engineered HID report layout.
 
 Every write reads the current report first, validates its CRC, patches only
 known offsets, recalculates the CRC, writes a timestamped raw backup, writes the
@@ -105,3 +104,7 @@ quadroctl --dry-run fan 1 fixed 30
 
 Use `--device /dev/hidrawN` to select a specific Linux device.
 On Windows, use the HID path printed by `quadroctl --backend hidapi list`.
+
+## License
+
+BSD 3-Clause License. See [LICENSE](LICENSE) for details.
