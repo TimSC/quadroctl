@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quadroctl"
+version = "0.1.0"
+description = "Command line control for Aquacomputer Quadro fan controllers"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "quadroctl contributors" }]
+dependencies = []
+classifiers = [
+  "Environment :: Console",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: System :: Hardware",
+]
+
+[project.optional-dependencies]
+hidapi = ["hidapi>=0.14"]
+
+[project.scripts]
+quadroctl = "quadroctl.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
