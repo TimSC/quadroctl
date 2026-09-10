@@ -14,8 +14,8 @@ responsible for verifying backups, commands, fan behavior, temperatures, and
 safe fallback settings before and after every write.
 
 `quadroctl` is a Python command line tool for Aquacomputer Quadro fan
-controllers using the reverse-engineered HID report layout documented in
-`quadro-interface.md` and `quadro-interface-v2.md`.
+controllers using the reverse-engineered HID report layout documented in 
+`quadro-interface-v2.md`.
 
 Every write reads the current report first, validates its CRC, patches only
 known offsets, recalculates the CRC, writes a timestamped raw backup, writes the

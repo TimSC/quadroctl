@@ -25,6 +25,8 @@ from .reports import (
     patch_fixed_power,
     patch_name,
     patch_sensor_offset,
+    patch_strip_brightness,
+    patch_strip_enabled,
     patch_target_temperature,
     update_names_crc,
     update_settings_crc,
@@ -130,6 +132,23 @@ def build_parser() -> argparse.ArgumentParser:
     sensor_offset = sensor_sub.add_parser("offset", help="set temperature offset in degrees C")
     sensor_offset.add_argument("degrees_c", type=float)
     sensor_offset.set_defaults(func=cmd_sensor_offset)
+
+    led = sub.add_parser("led", help="edit known RGBpx/LED strip settings")
+    led_sub = led.add_subparsers(required=True)
+    led_brightness = led_sub.add_parser("brightness", help="set strip brightness 0..255")
+    led_brightness.add_argument("value", type=parse_u8)
+    led_brightness.set_defaults(func=cmd_led_brightness)
+    led_enable = led_sub.add_parser("enable", help="turn the strip on or off")
+    led_enable.add_argument("state", type=parse_on_off)
+    led_enable.set_defaults(func=cmd_led_enable)
+    led_strip = led_sub.add_parser("strip", help="edit strip settings")
+    led_strip_sub = led_strip.add_subparsers(required=True)
+    led_strip_brightness = led_strip_sub.add_parser("brightness", help="set strip brightness 0..255")
+    led_strip_brightness.add_argument("value", type=parse_u8)
+    led_strip_brightness.set_defaults(func=cmd_led_brightness)
+    led_strip_enable = led_strip_sub.add_parser("enable", help="turn the strip on or off")
+    led_strip_enable.add_argument("state", type=parse_on_off)
+    led_strip_enable.set_defaults(func=cmd_led_enable)
 
     name = sub.add_parser("name", help="rename a known Quadro slot")
     name.add_argument("slot", type=parse_name_slot)
@@ -269,6 +288,21 @@ def cmd_sensor_offset(args: argparse.Namespace) -> int:
         return patch_sensor_offset(report, args.sensor, args.degrees_c)
 
     return modify_settings(args, mutate, f"Set temp{args.sensor + 1} offset to {args.degrees_c:.2f} C")
+
+
+def cmd_led_brightness(args: argparse.Namespace) -> int:
+    def mutate(report: bytearray) -> list[int]:
+        return patch_strip_brightness(report, args.value)
+
+    return modify_settings(args, mutate, f"Set LED strip brightness to {args.value}")
+
+
+def cmd_led_enable(args: argparse.Namespace) -> int:
+    def mutate(report: bytearray) -> list[int]:
+        return patch_strip_enabled(report, args.state)
+
+    state = "on" if args.state else "off"
+    return modify_settings(args, mutate, f"Turned LED strip {state}")
 
 
 def cmd_name(args: argparse.Namespace) -> int:
@@ -424,6 +458,17 @@ def print_settings(settings, verbose: bool = False) -> None:
         print(f"  strip_brightness={settings.strip_brightness}")
         print(f"  strip_flags=0x{settings.strip_flags:04x}")
         print(f"  dummy={settings.dummy}")
+        print("LED Controllers:")
+        for idx, led in enumerate(settings.led_controllers, start=1):
+            print(
+                f"  led{idx}: strip={led.strip} led_start={led.led_start} count={led.count} "
+                f"mode={led.mode} flags=0x{led.flags:04x}"
+            )
+            print(f"    src_raw={led.src_raw.hex()}")
+            print(f"    binding1_raw={led.binding1_raw.hex()}")
+            print(f"    binding2_raw={led.binding2_raw.hex()}")
+            print(f"    values={format_sequence(led.values)}")
+            print(f"    hsv_raw={led.hsv_raw.hex()}")
     print("Sensors:")
     for idx, sensor in enumerate(settings.sensors, start=1):
         print(f"  temp{idx}: offset={sensor.offset_c:.2f} C")
@@ -498,6 +543,16 @@ def parse_on_off(value: str) -> bool:
     if lowered in {"off", "no", "false", "0"}:
         return False
     raise argparse.ArgumentTypeError("must be on or off")
+
+
+def parse_u8(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer in range 0..255") from exc
+    if number < 0 or number > 255:
+        raise argparse.ArgumentTypeError("must be an integer in range 0..255")
+    return number
 
 
 def parse_source(value: str) -> int:

@@ -130,6 +130,20 @@ class ControllerConfig:
 
 
 @dataclass(frozen=True)
+class LedControllerConfig:
+    strip: int
+    led_start: int
+    count: int
+    mode: int
+    flags: int
+    src_raw: bytes
+    binding1_raw: bytes
+    binding2_raw: bytes
+    values: tuple[int, ...]
+    hsv_raw: bytes
+
+
+@dataclass(frozen=True)
 class Settings:
     structure_id: int
     i2c_address: int
@@ -141,6 +155,7 @@ class Settings:
     controllers: tuple[ControllerConfig, ...]
     strip_brightness: int
     strip_flags: int
+    led_controllers: tuple[LedControllerConfig, ...]
     profile_id: int
     dummy: int
 
@@ -343,6 +358,24 @@ def parse_settings(report: bytes | bytearray) -> Settings:
             )
         )
 
+    led_controllers = []
+    for idx in range(8):
+        base = led_controller_base(idx)
+        led_controllers.append(
+            LedControllerConfig(
+                strip=payload[base],
+                led_start=payload[base + 1],
+                count=payload[base + 2],
+                mode=payload[base + 3],
+                flags=u16(payload, base + 4),
+                src_raw=bytes(payload[base + 6 : base + 10]),
+                binding1_raw=bytes(payload[base + 10 : base + 16]),
+                binding2_raw=bytes(payload[base + 16 : base + 22]),
+                values=tuple(s16(payload, offset) for offset in range(base + 22, base + 46, 2)),
+                hsv_raw=bytes(payload[base + 46 : base + 70]),
+            )
+        )
+
     return Settings(
         structure_id=u16(payload, 0),
         i2c_address=payload[2],
@@ -354,6 +387,7 @@ def parse_settings(report: bytes | bytearray) -> Settings:
         controllers=tuple(controllers),
         strip_brightness=payload[393],
         strip_flags=u16(payload, 394),
+        led_controllers=tuple(led_controllers),
         profile_id=payload[956],
         dummy=payload[957],
     )
@@ -400,6 +434,10 @@ def curve_input(index0: int, point0: int) -> int:
 
 def curve_output(index0: int, point0: int) -> int:
     return curve_base(index0) + 34 + point0 * 2
+
+
+def led_controller_base(index0: int) -> int:
+    return 396 + index0 * 70
 
 
 def name_base(slot0: int) -> int:
@@ -450,6 +488,25 @@ def patch_sensor_offset(report: bytearray, sensor0: int, offset_c: float) -> lis
     _require_index(sensor0, 4, "sensor")
     offset = settings_payload_offset(sensor_base(sensor0))
     put_s16(report, offset, raw_temp(offset_c))
+    return [offset, offset + 1]
+
+
+def patch_strip_brightness(report: bytearray, brightness: int) -> list[int]:
+    if brightness < 0 or brightness > 255:
+        raise ValueError("strip brightness must be in range 0..255")
+    offset = settings_payload_offset(393)
+    report[offset] = brightness
+    return [offset]
+
+
+def patch_strip_enabled(report: bytearray, enabled: bool) -> list[int]:
+    offset = settings_payload_offset(394)
+    flags = u16(report, offset)
+    if enabled:
+        flags &= ~0x0002
+    else:
+        flags |= 0x0002
+    put_u16(report, offset, flags)
     return [offset, offset + 1]
 
 
